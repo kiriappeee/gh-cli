@@ -1,10 +1,15 @@
 package refresh
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/cli/cli/internal/config"
 	"github.com/cli/cli/pkg/cmdutil"
 	"github.com/cli/cli/pkg/iostreams"
+	"github.com/cli/cli/pkg/prompt"
 	"github.com/spf13/cobra"
 )
 
@@ -65,12 +70,58 @@ func NewCmdRefresh(f *cmdutil.Factory, runF func(*RefreshOptions) error) *cobra.
 }
 
 func refreshRun(opts *RefreshOptions) error {
-	// TODO check for GITHUB_TOKEN and error if found, mentioning token management URL
+	if os.Getenv("GITHUB_TOKEN") != "" {
+		return fmt.Errorf("GITHUB_TOKEN is present in your environment and is incompatible with this command. If you'd like to modify a personal access token, see https://github.com/settings/tokens")
+	}
 
-	// TODO ensure a token exists for host and validate it, recommending gh auth login if it fails
+	isTTY := opts.IO.IsStdinTTY() && opts.IO.IsStdoutTTY()
 
-	// TODO need a function for checking if scopes are already in place
+	if !isTTY {
+		return fmt.Errorf("not attached to a terminal; in headless environments, GITHUB_TOKEN is recommended")
+	}
 
-	// TODO need a form of authFlow that can take a list of scopes
+	cfg, err := opts.Config()
+	if err != nil {
+		return err
+	}
+
+	candidates, err := cfg.Hosts()
+	if err != nil {
+		return fmt.Errorf("not logged in to any hosts. Use 'gh auth login' to authenticate with a host")
+	}
+
+	hostname := opts.Hostname
+	if hostname == "" {
+		if len(candidates) == 1 {
+			hostname = candidates[0]
+		} else {
+			err := prompt.SurveyAskOne(&survey.Select{
+				Message: "What account do you want to refresh auth for?",
+				Options: candidates,
+			}, &hostname)
+
+			if err != nil {
+				return fmt.Errorf("could not prompt: %w", err)
+			}
+		}
+	} else {
+		var found bool
+		for _, c := range candidates {
+			if c == hostname {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf("not logged in to %s; use 'gh auth login' to authenticate with this host", hostname)
+		}
+	}
+
+	_, err = config.AuthFlowWithConfig(cfg, hostname, "", opts.Scopes)
+	if err != nil {
+		return fmt.Errorf("failed to authenticate via web browser: %w", err)
+	}
+
 	return nil
 }
