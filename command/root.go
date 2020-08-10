@@ -296,7 +296,7 @@ func httpClient(io *iostreams.IOStreams, cfg config.Config, setAccept bool) *htt
 				// TODO: check if stdout is TTY too
 				if errors.As(err, &notFound) && io.IsStdinTTY() {
 					// interactive OAuth flow
-					token, err = config.AuthFlowWithConfig(cfg, hostname, "Notice: authentication required")
+					token, err = config.AuthFlowWithConfig(cfg, hostname, "Notice: authentication required", []string{})
 				}
 				if err != nil {
 					return "", err
