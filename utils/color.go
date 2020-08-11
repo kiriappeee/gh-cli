@@ -16,7 +16,7 @@ var (
 	Yellow  = makeColorFunc("yellow")
 	Blue    = makeColorFunc("blue")
 	Green   = makeColorFunc("green")
-	Gray    = makeColorFunc("black+h")
+	Gray    = makeColorFunc("244")
 	Bold    = makeColorFunc("default+b")
 )
 
